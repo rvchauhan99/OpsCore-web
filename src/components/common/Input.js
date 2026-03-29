@@ -1,0 +1,123 @@
+"use client";
+
+import { forwardRef } from "react";
+import { Input as ShadcnInput } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/utils";
+import { FIELD_HEIGHT_CLASS_SMALL, FIELD_TEXT_SMALL } from "@/utils/formConstants";
+
+/**
+ * Standardized Input component (shadcn-based).
+ * Same API: name, label, value, onChange, error, helperText, fullWidth, size, multiline, rows.
+ * For type="number", value is normalized to a string for the native input so keyboard input
+ * and paste both work reliably; parents may still pass number or string.
+ */
+const Input = forwardRef(function Input(
+  {
+    name,
+    label,
+    value,
+    onChange,
+    type,
+    error = false,
+    helperText = null,
+    fullWidth = true,
+    size = "small",
+    multiline = false,
+    rows,
+    disabled = false,
+    required = false,
+    className,
+    inputProps = {},
+    InputProps, // MUI convention - merge valid DOM props, ignore sx etc.
+    ...otherProps
+  },
+  ref
+) {
+  // Merge InputProps (MUI convention) - extract valid input/textarea DOM attributes, exclude sx
+  const { sx, ...inputPropsFromMUI } = InputProps || {};
+  const mergedInputProps = { ...inputProps, ...inputPropsFromMUI };
+
+  // For type="number", always use string so controlled input works reliably across all forms
+  const safeValue =
+    type === "number"
+      ? (value == null || value === "" ? "" : String(value))
+      : (value == null ? "" : value);
+  // Prevent scroll-wheel from changing number values (browser natively increments/decrements on wheel when focused)
+  const numberInputProps =
+    type === "number"
+      ? {
+          inputMode: "decimal",
+          step: mergedInputProps.step ?? "0.01",
+          ...mergedInputProps,
+          onWheel: (e) => e.currentTarget.blur(), // blur so scroll scrolls page, not value; prevents 100 -> 99.99
+        }
+      : mergedInputProps;
+
+  if (multiline) {
+    return (
+      <div className={cn("w-full", fullWidth ? "max-w-full" : "max-w-md")}>
+        {label && (
+          <Label htmlFor={name} className="mb-1.5 block text-sm font-medium">
+            {label}
+            {required && <span className="text-destructive ml-0.5">*</span>}
+          </Label>
+        )}
+        <Textarea
+          ref={ref}
+          id={name}
+          name={name}
+          value={safeValue}
+          onChange={onChange}
+          disabled={disabled}
+          rows={rows ?? 3}
+          className={cn(
+            size === "small" && `min-h-9 ${FIELD_TEXT_SMALL}`,
+            error && "border-destructive focus-visible:ring-destructive",
+            className
+          )}
+          {...mergedInputProps}
+          {...otherProps}
+        />
+        {error && helperText && (
+          <p className="mt-1.5 text-xs text-destructive">{helperText}</p>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className={cn("w-full", fullWidth ? "max-w-full" : "max-w-md")}>
+      {label && (
+        <Label htmlFor={name} className="mb-1.5 block text-sm font-medium">
+          {label}
+          {required && <span className="text-destructive ml-0.5">*</span>}
+        </Label>
+      )}
+      <ShadcnInput
+        ref={ref}
+        id={name}
+        name={name}
+        type={type}
+        value={safeValue}
+        onChange={onChange}
+        disabled={disabled}
+        className={cn(
+          size === "small" && `${FIELD_HEIGHT_CLASS_SMALL} ${FIELD_TEXT_SMALL}`,
+          error && "border-destructive focus-visible:ring-destructive",
+          className
+        )}
+        {...(type === "number" ? numberInputProps : mergedInputProps)}
+        {...otherProps}
+      />
+      {error && helperText && (
+        <p className="mt-1.5 text-xs text-destructive">{helperText}</p>
+      )}
+    </div>
+  );
+});
+
+Input.displayName = "Input";
+
+export default Input;

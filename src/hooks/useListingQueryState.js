@@ -1,0 +1,170 @@
+"use client";
+
+import { useCallback, useMemo, useEffect, useRef } from "react";
+import { useSearchParams, useRouter, usePathname } from "next/navigation";
+
+const DEBOUNCE_MS = 450;
+
+/**
+ * Parse a string as integer; return defaultVal if invalid or missing.
+ */
+function parseIntSafe(str, defaultVal) {
+  if (str == null || str === "") return defaultVal;
+  const n = parseInt(str, 10);
+  return Number.isNaN(n) ? defaultVal : n;
+}
+
+/**
+ * URL-driven listing state: page, limit, q, sortBy, sortOrder, and configurable filters.
+ * Use with Next.js useSearchParams + useRouter.replace so filters are shareable and back/forward work.
+ *
+ * @param {Object} options
+ * @param {number} [options.defaultLimit=10]
+ * @param {string[]} [options.filterKeys=[]] - e.g. ['status', 'date_from', 'date_to', 'supplier_id']
+ * Default sort order is "desc" (newest / highest id first) so listing pages show last records first.
+ * @returns {Object} { page, limit, q, sortBy, sortOrder, filters, setPage, setLimit, setQ, setFilters, setSort }
+ */
+export function useListingQueryState({ defaultLimit = 10, filterKeys = [] } = {}) {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+  const debounceTimerRef = useRef(null);
+
+  const page = parseIntSafe(searchParams.get("page"), 1);
+  const limit = parseIntSafe(searchParams.get("limit"), defaultLimit);
+  const q = searchParams.get("q") ?? "";
+  const sortBy = searchParams.get("sortBy") ?? "";
+  const sortOrder = searchParams.get("sortOrder") ?? "desc";
+
+  const filters = useMemo(() => {
+    const f = {};
+    filterKeys.forEach((key) => {
+      f[key] = searchParams.get(key) ?? "";
+    });
+    return f;
+  }, [filterKeys.join(","), searchParams]);
+
+  const buildSearchParams = useCallback(
+    (updates) => {
+      const next = new URLSearchParams(searchParams?.toString() ?? "");
+      Object.entries(updates).forEach(([key, value]) => {
+        if (value === "" || value == null) {
+          next.delete(key);
+        } else {
+          next.set(key, String(value));
+        }
+      });
+      return next;
+    },
+    [searchParams]
+  );
+
+  const setPage = useCallback(
+    (p) => {
+      const next = buildSearchParams({ page: p <= 1 ? undefined : String(p) });
+      router.replace(`${pathname}${next.toString() ? `?${next.toString()}` : ""}`);
+    },
+    [pathname, router, buildSearchParams]
+  );
+
+  const setLimit = useCallback(
+    (l) => {
+      const next = buildSearchParams({ limit: String(l), page: undefined });
+      router.replace(`${pathname}?${next.toString()}`);
+    },
+    [pathname, router, buildSearchParams]
+  );
+
+  const setQ = useCallback(
+    (value, debounce = true) => {
+      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+
+      const update = () => {
+        const next = buildSearchParams({ q: value || undefined, page: undefined });
+        router.replace(`${pathname}${next.toString() ? `?${next.toString()}` : ""}`);
+      };
+
+      if (debounce) {
+        debounceTimerRef.current = setTimeout(update, DEBOUNCE_MS);
+      } else {
+        update();
+      }
+    },
+    [pathname, router, buildSearchParams]
+  );
+
+  const setSort = useCallback(
+    (by, order) => {
+      const next = buildSearchParams({
+        sortBy: by || undefined,
+        sortOrder: order || undefined,
+      });
+      router.replace(`${pathname}${next.toString() ? `?${next.toString()}` : ""}`);
+    },
+    [pathname, router, buildSearchParams]
+  );
+
+  const setFilters = useCallback(
+    (newFilters, resetPage = true, debounce = false) => {
+      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+
+      const update = () => {
+        const next = new URLSearchParams(searchParams?.toString() ?? "");
+        if (resetPage) next.delete("page");
+        Object.entries(newFilters).forEach(([key, value]) => {
+          if (value === "" || value == null) next.delete(key);
+          else next.set(key, String(value));
+        });
+        // Ensure listing params are preserved (in case they were missing from newFilters)
+        if (next.get("limit") == null && limit != null) next.set("limit", String(limit));
+        const hasQInUpdates = Object.prototype.hasOwnProperty.call(newFilters || {}, "q");
+        if (next.get("q") == null && !hasQInUpdates && q != null && q !== "") next.set("q", q);
+        if (next.get("sortBy") == null && sortBy) next.set("sortBy", sortBy);
+        if (next.get("sortOrder") == null && sortOrder) next.set("sortOrder", sortOrder);
+        router.replace(`${pathname}${next.toString() ? `?${next.toString()}` : ""}`);
+      };
+
+      if (debounce) {
+        debounceTimerRef.current = setTimeout(update, DEBOUNCE_MS);
+      } else {
+        update();
+      }
+    },
+    [pathname, router, searchParams, limit, q, sortBy, sortOrder]
+  );
+
+  const setFilter = useCallback(
+    (key, value) => {
+      const nextFilters = { ...filters, [key]: value };
+      setFilters(nextFilters);
+    },
+    [filters, setFilters]
+  );
+
+  const clearFilters = useCallback(() => {
+    const next = new URLSearchParams();
+    next.set("limit", String(limit));
+    if (q) next.set("q", q);
+    if (sortBy) next.set("sortBy", sortBy);
+    if (sortOrder) next.set("sortOrder", sortOrder);
+    router.replace(`${pathname}?${next.toString()}`);
+  }, [pathname, router, limit, q, sortBy, sortOrder]);
+
+  return {
+    page,
+    limit,
+    q,
+    sortBy: sortBy || null,
+    sortOrder: sortOrder || "desc",
+    filters,
+    setPage,
+    setLimit,
+    setQ,
+    setFilters,
+    setFilter,
+    setSort,
+    clearFilters,
+  };
+}
+
+export default useListingQueryState;

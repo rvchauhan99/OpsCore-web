@@ -1,0 +1,66 @@
+"use client";
+
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
+import ProtectedRoute from "@/components/common/ProtectedRoute";
+import AddEditPageShell from "@/components/common/AddEditPageShell";
+import ModuleForm from "../components/ModuleForm";
+import moduleService from "@/services/moduleMasterService";
+
+const EMPTY_DEFAULTS = Object.freeze({});
+
+export default function ModuleAddPage() {
+  const router = useRouter();
+  const [parentOptions, setParentOptions] = useState([]);
+  const [serverError, setServerError] = useState(null);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await moduleService.listModuleMasters({
+          page: 1,
+          limit: 500,
+        });
+        const body = res.result || res.data || res;
+        // body may be { data: rows, meta } or an array
+        const rows = body.data || body.result || body || [];
+        const allModules = Array.isArray(rows) ? rows : rows.data || [];
+        setParentOptions(allModules);
+      } catch (err) {
+        console.error(err);
+      }
+    })();
+  }, []);
+
+  const handleSubmit = async (data) => {
+    try {
+      await moduleService.createModuleMaster(data);
+      toast.success("Module created");
+      router.push("/module-master");
+    } catch (err) {
+      const msg =
+        err?.response?.data?.message ||
+        err?.message ||
+        "Failed to create module";
+      setServerError(msg);
+    }
+  };
+
+  const clearServerError = () => setServerError(null);
+
+  return (
+    <ProtectedRoute>
+      <AddEditPageShell title="Add New Module" listHref="/module-master" listLabel="Module Master">
+        <ModuleForm
+          onSubmit={handleSubmit}
+          defaultValues={EMPTY_DEFAULTS}
+          loading={false}
+          parentOptions={parentOptions}
+          serverError={serverError}
+          onClearServerError={clearServerError}
+        />
+      </AddEditPageShell>
+    </ProtectedRoute>
+  );
+}
