@@ -234,7 +234,7 @@ export default function ManufacturingOrdersPage() {
     {
       field: "product",
       label: "Product",
-      render: (row) => <span className="text-sm font-medium">{row.product?.name || `Product #${row.product_id}`}</span>,
+      render: (row) => <span className="text-sm font-medium">{row.product?.product_name || `Product #${row.product_id}`}</span>,
     },
     {
       field: "status",
@@ -318,7 +318,7 @@ export default function ManufacturingOrdersPage() {
           <Badge variant={PRIORITY_COLORS[r.priority]}>{r.priority}</Badge>
         </div>
         {[
-          ["Product", r.product?.name || `#${r.product_id}`],
+          ["Product", r.product?.product_name || `#${r.product_id}`],
           ["BOM", r.bom ? `${r.bom.name} v${r.bom.version}` : "—"],
           ["Qty", `${r.produced_qty ?? 0} of ${r.planned_qty}`],
           ["Planned Start", r.planned_start ? formatDate(r.planned_start) : "—"],

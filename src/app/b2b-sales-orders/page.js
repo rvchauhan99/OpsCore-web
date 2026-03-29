@@ -3,7 +3,7 @@
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { IconFileDescription, IconPencil, IconTrash, IconFileTypePdf, IconChevronDown, IconCircleCheck, IconX } from "@tabler/icons-react";
+import { IconFileDescription, IconPencil, IconTrash, IconFileTypePdf, IconChevronDown, IconCircleCheck, IconX, IconClipboardList } from "@tabler/icons-react";
 import { Button } from "@/components/ui/button";
 import BillToShipToDisplay from "@/components/common/BillToShipToDisplay";
 import Loader from "@/components/common/Loader";
@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import ProtectedRoute from "@/components/common/ProtectedRoute";
 import b2bSalesOrderService from "@/services/b2bSalesOrderService";
+import manufacturingOrderService from "@/services/manufacturingOrderService";
 import ListingPageContainer from "@/components/common/ListingPageContainer";
 import PaginatedTable from "@/components/common/PaginatedTable";
 import PaginationControls from "@/components/common/PaginationControls";
@@ -90,6 +91,7 @@ export default function B2bSalesOrdersPage() {
   const [orderToCancel, setOrderToCancel] = useState(null);
   const [cancellingOrder, setCancellingOrder] = useState(false);
   const [totalCount, setTotalCount] = useState(0);
+  const [creatingMo, setCreatingMo] = useState(false);
 
   const columnFilterValues = useMemo(() => ({ ...filters }), [filters]);
   const handleColumnFilterChange = useCallback((key, value) => setFilter(key, value), [setFilter]);
@@ -207,6 +209,22 @@ export default function B2bSalesOrdersPage() {
       setCancellingOrder(false);
     }
   }, [orderToCancel, selectedRecord?.id]);
+
+  const handleCreateMoFromSalesOrder = useCallback(async () => {
+    if (!selectedRecord?.id) return;
+    setCreatingMo(true);
+    try {
+      const res = await manufacturingOrderService.createManufacturingOrdersFromB2bSalesOrder(selectedRecord.id, {});
+      const results = res?.results ?? res?.result?.results ?? [];
+      const made = results.filter((r) => !r.skipped).length;
+      const skipped = results.filter((r) => r.skipped).length;
+      toast.success(res?.message || `Created ${made} MO(s)${skipped ? `, ${skipped} skipped` : ""}`);
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Could not create manufacturing orders");
+    } finally {
+      setCreatingMo(false);
+    }
+  }, [selectedRecord?.id]);
 
   const handlePdfDownload = useCallback(async (id) => {
     try {
@@ -606,6 +624,12 @@ export default function B2bSalesOrdersPage() {
                       Cancel Order
                     </Button>
                   </>
+                )}
+                {(selectedRecord?.status === "CONFIRMED" || selectedRecord?.status === "CLOSED") && (
+                  <Button size="sm" variant="secondary" disabled={creatingMo} onClick={handleCreateMoFromSalesOrder}>
+                    <IconClipboardList className="size-4 mr-1" />
+                    {creatingMo ? "Creating…" : "Create MOs"}
+                  </Button>
                 )}
                 <Button size="sm" variant="outline" onClick={() => handlePdfDownload(selectedRecord.id)}>
                   <IconFileTypePdf className="size-4 mr-1" />

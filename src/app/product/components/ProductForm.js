@@ -49,6 +49,8 @@ export default function ProductForm({ defaultValues = {}, onSubmit, loading, ser
         product_type_id: "",
         product_make_id: "",
         product_name: "",
+        category: "",
+        subcategory: "",
         product_description: "",
         hsn_ssn_code: "",
         measurement_unit_id: "",
@@ -156,6 +158,8 @@ export default function ProductForm({ defaultValues = {}, onSubmit, loading, ser
                 product_type_id: defaultValues.product_type_id ?? "",
                 product_make_id: defaultValues.product_make_id ?? "",
                 product_name: defaultValues.product_name ?? "",
+                category: defaultValues.category ?? "",
+                subcategory: defaultValues.subcategory ?? "",
                 product_description: defaultValues.product_description ?? "",
                 hsn_ssn_code: defaultValues.hsn_ssn_code ?? "",
                 measurement_unit_id: defaultValues.measurement_unit_id ?? "",
@@ -596,6 +600,13 @@ export default function ProductForm({ defaultValues = {}, onSubmit, loading, ser
                             error={!!errors.product_name}
                             helperText={errors.product_name}
                         />
+                    </Grid>
+
+                    <Grid item size={{ xs: 12, md: 3 }}>
+                        <Input name="category" label="Category" value={formData.category} onChange={handleChange} />
+                    </Grid>
+                    <Grid item size={{ xs: 12, md: 3 }}>
+                        <Input name="subcategory" label="Subcategory" value={formData.subcategory} onChange={handleChange} />
                     </Grid>
 
                     {/* HSN/SSN Code */}

@@ -3,43 +3,25 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import moment from "moment";
-import { Button as MuiButton, Tooltip } from "@mui/material";
-import { IconExternalLink, IconSearch, IconX } from "@tabler/icons-react";
-import { toast } from "sonner";
+import { Tooltip } from "@mui/material";
+import { IconSearch, IconX } from "@tabler/icons-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import PaginatedTable from "@/components/common/PaginatedTable";
-import DetailsSidebar from "@/components/common/DetailsSidebar";
-import OrderDetailsDrawer from "@/components/common/OrderDetailsDrawer";
-import QuotationDetailsContent from "@/app/quotation/components/QuotationDetailsContent";
-import InquiryDetailsContent from "@/components/common/InquiryDetailsContent";
-import MarketingLeadDetailsContent from "@/components/common/MarketingLeadDetailsContent";
 import { getGlobalSearch } from "@/services/globalSearchService";
-import quotationService from "@/services/quotationService";
-import inquiryService from "@/services/inquiryService";
-import marketingLeadsService from "@/services/marketingLeadsService";
-import orderService from "@/services/orderService";
-import { toastError } from "@/utils/toast";
 import { cn } from "@/lib/utils";
 
 const SOURCE_BADGE = {
-  marketing_lead: "bg-sky-100 text-sky-800",
-  inquiry: "bg-violet-100 text-violet-800",
-  order: "bg-emerald-100 text-emerald-800",
-  quotation: "bg-amber-100 text-amber-800",
+  b2b_client: "bg-sky-100 text-sky-800",
+  product: "bg-emerald-100 text-emerald-800",
+  supplier: "bg-violet-100 text-violet-800",
+  purchase_order: "bg-amber-100 text-amber-800",
+  b2b_sales_quote: "bg-orange-100 text-orange-900",
+  b2b_sales_order: "bg-teal-100 text-teal-900",
 };
 
-const SIDEBAR_ENTITY_TYPES = new Set(["quotation", "inquiry", "marketing_lead"]);
-
-const GLOBAL_SEARCH_Q_KEY = "techhind_global_search_q";
-
-function sidebarTitleForEntity(entityType) {
-  if (entityType === "quotation") return "Quotation Details";
-  if (entityType === "inquiry") return "Inquiry Details";
-  if (entityType === "marketing_lead") return "Marketing lead";
-  return "Details";
-}
+const GLOBAL_SEARCH_Q_KEY = "opscore_global_search_q";
 
 export default function GlobalSearchPage() {
   const router = useRouter();
@@ -80,109 +62,15 @@ export default function GlobalSearchPage() {
     setSubmittedQ("");
   }, [urlQ, pathname, router]);
 
-  const [selectedRow, setSelectedRow] = useState(null);
-  const [orderDrawerOpen, setOrderDrawerOpen] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [loadingDetail, setLoadingDetail] = useState(false);
-  const [fullQuotation, setFullQuotation] = useState(null);
-  const [fullInquiry, setFullInquiry] = useState(null);
-  const [fullLead, setFullLead] = useState(null);
+  const openDetails = useCallback(
+    (row) => {
+      if (!row?.detail_path) return;
+      router.push(row.detail_path);
+    },
+    [router]
+  );
 
   const filterParams = useMemo(() => ({ submittedQ }), [submittedQ]);
-
-  const closeDetails = useCallback(() => {
-    setSelectedRow(null);
-    setOrderDrawerOpen(false);
-    setSidebarOpen(false);
-    setLoadingDetail(false);
-    setFullQuotation(null);
-    setFullInquiry(null);
-    setFullLead(null);
-  }, []);
-
-  const openDetails = useCallback(async (row) => {
-    if (!row?.id) return;
-    const { entityType } = row;
-    if (
-      entityType !== "order" &&
-      entityType !== "quotation" &&
-      entityType !== "inquiry" &&
-      entityType !== "marketing_lead"
-    ) {
-      toast.error("This result type cannot be opened from search.");
-      return;
-    }
-
-    setSelectedRow(row);
-    setFullQuotation(null);
-    setFullInquiry(null);
-    setFullLead(null);
-
-    if (entityType === "order") {
-      setOrderDrawerOpen(true);
-      setSidebarOpen(false);
-      return;
-    }
-
-    setOrderDrawerOpen(false);
-    setSidebarOpen(true);
-    setLoadingDetail(true);
-
-    try {
-      if (entityType === "quotation") {
-        const response = await quotationService.getQuotationById(row.id);
-        const data = response?.result ?? response?.data ?? response;
-        setFullQuotation(data ?? null);
-      } else if (entityType === "inquiry") {
-        const response = await inquiryService.getInquiryById(row.id);
-        const result = response?.result || response?.data || response;
-        setFullInquiry(Array.isArray(result) ? result[0] : result);
-      } else if (entityType === "marketing_lead") {
-        const response = await marketingLeadsService.getMarketingLeadById(row.id);
-        const data = response?.result ?? response?.data ?? response;
-        setFullLead(data ?? null);
-      }
-    } catch (err) {
-      const msg =
-        err?.response?.data?.message || err?.message || "Failed to load details";
-      toast.error(msg);
-      setFullQuotation(null);
-      setFullInquiry(null);
-      setFullLead(null);
-    } finally {
-      setLoadingDetail(false);
-    }
-  }, []);
-
-  const handlePrintOrder = useCallback(async (resolvedOrder) => {
-    try {
-      const file = await orderService.downloadOrderPDF(resolvedOrder?.id);
-      const blob = file?.blob || file;
-      const filename =
-        file?.filename ||
-        `order-${resolvedOrder?.order_number || resolvedOrder?.id}.pdf`;
-      if (!blob) throw new Error("PDF download failed");
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    } catch (err) {
-      const msg =
-        err?.response?.data?.message || err?.message || "Failed to download order PDF";
-      toastError(msg);
-    }
-  }, []);
-
-  const openFullPage = useCallback(() => {
-    const path = selectedRow?.detail_path;
-    if (!path) return;
-    closeDetails();
-    router.push(path);
-  }, [selectedRow, closeDetails, router]);
 
   const fetcher = useCallback(async () => {
     const q = (submittedQ || "").trim();
@@ -214,7 +102,7 @@ export default function GlobalSearchPage() {
     () => [
       {
         field: "pui",
-        label: "PUI",
+        label: "Ref / Code",
         sortable: true,
         stickyLeft: 0,
         minWidth: 105,
@@ -261,7 +149,7 @@ export default function GlobalSearchPage() {
       },
       {
         field: "customer_name",
-        label: "Customer",
+        label: "Name",
         sortable: true,
         render: (row) => row.customer_name || "-",
       },
@@ -287,26 +175,8 @@ export default function GlobalSearchPage() {
         },
       },
       {
-        field: "consumer_no",
-        label: "Consumer No.",
-        sortable: true,
-        render: (row) => row.consumer_no || "-",
-      },
-      {
-        field: "application_no",
-        label: "Application No.",
-        sortable: true,
-        render: (row) => row.application_no || "-",
-      },
-      {
-        field: "guvnl_no",
-        label: "GUVNL No.",
-        sortable: true,
-        render: (row) => row.guvnl_no || "-",
-      },
-      {
         field: "scheme",
-        label: "Scheme",
+        label: "GST / HSN / Code",
         sortable: true,
         render: (row) => row.scheme || "-",
       },
@@ -316,18 +186,20 @@ export default function GlobalSearchPage() {
         sortable: false,
         render: (row) => {
           const dates = [];
-          if (row.inquiry_or_lead_date) dates.push({ label: "Inq/Lead", val: row.inquiry_or_lead_date });
+          if (row.inquiry_or_lead_date) dates.push({ label: "Ref", val: row.inquiry_or_lead_date });
           if (row.order_date) dates.push({ label: "Order", val: row.order_date });
           if (row.netmeter_installed_on) dates.push({ label: "Netmeter", val: row.netmeter_installed_on });
-          
+
           if (dates.length === 0) return "-";
 
           return (
             <div className="flex flex-col gap-1 text-xs whitespace-nowrap min-w-[100px]">
               {dates.map((d, idx) => (
-                 <div key={idx} className="flex items-center">
-                   <span className="font-medium tracking-tight whitespace-nowrap">{moment(d.val).format("DD-MM-YYYY")}</span>
-                 </div>
+                <div key={idx} className="flex items-center">
+                  <span className="font-medium tracking-tight whitespace-nowrap">
+                    {moment(d.val).format("DD-MM-YYYY")}
+                  </span>
+                </div>
               ))}
             </div>
           );
@@ -369,26 +241,8 @@ export default function GlobalSearchPage() {
     router.replace(pathname);
   }, [pathname, router]);
 
-  const showSidebar =
-    sidebarOpen && selectedRow && SIDEBAR_ENTITY_TYPES.has(selectedRow.entityType);
-
-  const sidebarHeaderActions =
-    selectedRow?.detail_path ? (
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        className="gap-1"
-        onClick={openFullPage}
-      >
-        <IconExternalLink className="size-3.5 shrink-0" />
-        Open full page
-      </Button>
-    ) : null;
-
   return (
     <div className="flex w-full min-h-0 flex-1 flex-col p-2">
-      {/* Premium Stylish Search Card */}
       <div className="mx-auto w-full max-w-4xl bg-card border border-border shadow-sm rounded-xl p-3 sm:px-4 sm:py-3 mb-2">
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full">
           <div className="relative flex-1">
@@ -401,7 +255,7 @@ export default function GlobalSearchPage() {
               onKeyDown={(e) => {
                 if (e.key === "Enter") runSearch();
               }}
-              placeholder="Start typing to search globally..."
+              placeholder="Search B2B clients, products, suppliers, POs, quotes, orders…"
               className="h-9 sm:h-10 pl-9 pr-4 text-[13px] sm:text-sm bg-background/50 border-input shadow-inner focus-visible:ring-1 focus-visible:ring-primary/40 rounded-lg"
               aria-label="Global search"
             />
@@ -440,12 +294,12 @@ export default function GlobalSearchPage() {
           </div>
         </div>
         <p className="mt-2 text-[10.5px] sm:text-[11px] text-muted-foreground text-center sm:text-left leading-snug">
-          <span className="font-semibold text-foreground/70 mr-1">Searchable fields:</span>
-          Customer Name, Mobile, Address, Lead / Inquiry / Order / Quotation Number, Consumer No., Application No., GUVNL No.
+          <span className="font-semibold text-foreground/70 mr-1">Includes:</span>
+          B2B clients, products, suppliers, purchase orders, B2B quotes, and B2B sales orders (per-module cap
+          applies).
         </p>
       </div>
 
-      {/* Maximized Table Area */}
       <div className="min-h-0 flex-1 flex flex-col mt-0.5">
         <PaginatedTable
           key={submittedQ || "__empty__"}
@@ -461,50 +315,6 @@ export default function GlobalSearchPage() {
           onRowClick={(row) => openDetails(row)}
         />
       </div>
-
-      {orderDrawerOpen && selectedRow?.entityType === "order" ? (
-        <OrderDetailsDrawer
-          open={orderDrawerOpen}
-          onClose={closeDetails}
-          order={{ id: selectedRow.id }}
-          onPrint={handlePrintOrder}
-          showPrint
-          extraActions={
-            selectedRow?.detail_path ? (
-              <MuiButton
-                size="small"
-                variant="outlined"
-                onClick={openFullPage}
-                startIcon={<IconExternalLink className="size-4" />}
-              >
-                Open full page
-              </MuiButton>
-            ) : null
-          }
-        />
-      ) : null}
-
-      {showSidebar ? (
-        <DetailsSidebar
-          open={sidebarOpen}
-          onClose={closeDetails}
-          title={sidebarTitleForEntity(selectedRow.entityType)}
-          headerActions={sidebarHeaderActions}
-        >
-          {selectedRow.entityType === "quotation" ? (
-            <QuotationDetailsContent
-              quotation={fullQuotation}
-              loading={loadingDetail}
-            />
-          ) : null}
-          {selectedRow.entityType === "inquiry" ? (
-            <InquiryDetailsContent inquiry={fullInquiry} loading={loadingDetail} />
-          ) : null}
-          {selectedRow.entityType === "marketing_lead" ? (
-            <MarketingLeadDetailsContent lead={fullLead} loading={loadingDetail} />
-          ) : null}
-        </DetailsSidebar>
-      ) : null}
     </div>
   );
 }

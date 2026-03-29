@@ -161,6 +161,7 @@ export default function DeliveryChallanForm({
             const unitName = p?.measurement_unit_name || line.measurement_unit_name || "";
             return {
                 product_id: line.product_id,
+                b2b_sales_order_item_id: line.b2b_sales_order_item_id ?? null,
                 product_name: p?.product_name || "",
                 product_type_name: p?.product_type_name || "",
                 make_name: p?.product_make_name || "",
@@ -996,12 +997,13 @@ export default function DeliveryChallanForm({
                 product_id: line.product_id,
                 quantity: shipNow,
                 serials: serials.join(", "),
+                b2b_sales_order_item_id: line.b2b_sales_order_item_id ?? null,
             });
         }
 
         const payload = {
             ...formData,
-            order_id: Number(order.id),
+            b2b_sales_order_id: Number(order.b2b_sales_order_id ?? order.id),
             items,
         };
 

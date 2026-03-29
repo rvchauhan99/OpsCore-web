@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import DetailsSidebar from "@/components/common/DetailsSidebar";
 import orderService from "@/services/orderService";
 import quotationService from "@/services/quotationService";
+import b2bSalesOrderService from "@/services/b2bSalesOrderService";
+import b2bSalesQuoteService from "@/services/b2bSalesQuoteService";
 import QuotationDetailsContent from "@/app/quotation/components/QuotationDetailsContent";
 
 export default function QuotationDetailsDrawer({
@@ -28,9 +30,18 @@ export default function QuotationDetailsDrawer({
 
         let resolvedQuotationId = inputQuotationId;
         if (!resolvedQuotationId && orderId) {
-          const orderRes = await orderService.getOrderById(orderId);
-          const order = orderRes?.result || orderRes || null;
-          resolvedQuotationId = order?.quotation_id || null;
+          try {
+            const soRes = await b2bSalesOrderService.getB2bSalesOrderById(orderId);
+            const so = soRes?.result || soRes || null;
+            if (so?.quote_id) resolvedQuotationId = so.quote_id;
+          } catch {
+            /* fall through */
+          }
+          if (!resolvedQuotationId) {
+            const orderRes = await orderService.getOrderById(orderId);
+            const order = orderRes?.result || orderRes || null;
+            resolvedQuotationId = order?.quotation_id || order?.quote_id || null;
+          }
         }
 
         if (!resolvedQuotationId) {
@@ -39,9 +50,19 @@ export default function QuotationDetailsDrawer({
           return;
         }
 
-        const quotationRes = await quotationService.getQuotationById(resolvedQuotationId);
+        let quote = null;
+        try {
+          const b2bRes = await b2bSalesQuoteService.getB2bSalesQuoteById(resolvedQuotationId);
+          quote = b2bRes?.result || b2bRes || null;
+        } catch {
+          quote = null;
+        }
+        if (!quote) {
+          const quotationRes = await quotationService.getQuotationById(resolvedQuotationId);
+          quote = quotationRes?.result || quotationRes || null;
+        }
         if (!mounted) return;
-        setQuotation(quotationRes?.result || quotationRes || null);
+        setQuotation(quote);
       } catch (err) {
         if (!mounted) return;
         setError(err?.response?.data?.message || err?.message || "Failed to load quotation details");

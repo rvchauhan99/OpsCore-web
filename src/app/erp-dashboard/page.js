@@ -3,5 +3,5 @@
 import { DashboardPageContent } from "../home/page";
 
 export default function ERPDashboardPage() {
-    return <DashboardPageContent dashboardApiBase="/order" />;
+    return <DashboardPageContent dashboardApiBase="/home" />;
 }

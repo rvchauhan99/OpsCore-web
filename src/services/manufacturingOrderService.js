@@ -9,6 +9,9 @@ export const getManufacturingOrderById = (id) =>
 export const createManufacturingOrder = (payload) =>
   apiClient.post("/manufacturing-orders", payload).then((r) => r.data);
 
+export const createManufacturingOrdersFromB2bSalesOrder = (salesOrderId, payload = {}) =>
+  apiClient.post(`/manufacturing-orders/from-b2b-sales-order/${salesOrderId}`, payload).then((r) => r.data);
+
 export const updateManufacturingOrder = (id, payload) =>
   apiClient.put(`/manufacturing-orders/${id}`, payload).then((r) => r.data);
 
@@ -22,6 +25,7 @@ export default {
   getManufacturingOrders,
   getManufacturingOrderById,
   createManufacturingOrder,
+  createManufacturingOrdersFromB2bSalesOrder,
   updateManufacturingOrder,
   updateManufacturingOrderStatus,
   deleteManufacturingOrder,

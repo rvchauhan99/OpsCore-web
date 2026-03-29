@@ -147,7 +147,7 @@ export default function BillOfMaterialsPage() {
         </div>
       )
     },
-    { field: "product", label: "Product", render: (row) => row.product?.name || `ID #${row.product_id}` },
+    { field: "product", label: "Product", render: (row) => row.product?.product_name || `ID #${row.product_id}` },
     { field: "status", label: "Status", render: (row) => <Badge variant={STATUS_COLORS[row.status]}>{row.status}</Badge> },
     {
       field: "cost", label: "Total Unit Cost",
@@ -278,7 +278,7 @@ export default function BillOfMaterialsPage() {
                   <IconListDetails className="size-5" />
                   {selectedRecord.name} (v{selectedRecord.version})
                 </p>
-                <p className="text-sm text-muted-foreground mt-1">Product: {selectedRecord.product?.name || selectedRecord.product_id}</p>
+                <p className="text-sm text-muted-foreground mt-1">Product: {selectedRecord.product?.product_name || selectedRecord.product_id}</p>
                 <p className="text-sm font-medium mt-2">
                   Unit Cost: ₹{parseFloat(selectedRecord.total_unit_cost || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                 </p>
@@ -303,7 +303,7 @@ export default function BillOfMaterialsPage() {
                   <ul className="space-y-1">
                     {selectedRecord.components.map((c, i) => (
                       <li key={i} className="text-xs flex justify-between p-1.5 border-b">
-                        <span>{c.componentProduct?.name || `Product #${c.component_product_id}`}</span>
+                        <span>{c.componentProduct?.product_name || `Product #${c.component_product_id}`}</span>
                         <span className="font-medium text-muted-foreground">{c.qty} unit @ ₹{c.cost_per_unit || 0}</span>
                       </li>
                     ))}
